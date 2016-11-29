@@ -22,6 +22,8 @@ import cern.colt.matrix.DoubleMatrix1D;
 import cern.colt.matrix.DoubleMatrix2D;
 import org.processmining.mining.logabstraction.LogAbstraction;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RouMiningPlugin implements MiningPlugin{
 
@@ -53,8 +55,8 @@ public class RouMiningPlugin implements MiningPlugin{
 		int n=directSuccessionCount.rows();
 
 		//计算阈值val1
-		for (int i = 0; i < directSuccessionCount.rows(); i++){
-			for (int j = 0; j < directSuccessionCount.rows(); j++){
+		for (int i = 0; i < n; i++){
+			for (int j = 0; j < n; j++){
 				val1+=directSuccessionCount.get(i,j);
 				if (directSuccessionCount.get(i,j)!=0) {
 					notzero++;
@@ -70,8 +72,8 @@ public class RouMiningPlugin implements MiningPlugin{
 		//计算阈值val2
 		int a=0;	//用于计算
 		int b=0;
-		for (int i = 0; i < directSuccessionCount.rows(); i++){
-			for (int j = i; j < directSuccessionCount.rows(); j++){
+		for (int i = 0; i < n; i++){
+			for (int j = i; j < n; j++){
 				a+=(directSuccessionCount.get(i,j)-directSuccessionCount.get(j,i));
 				b+=(directSuccessionCount.get(i,j)+directSuccessionCount.get(j,i)+PARAMETER);
 			}
@@ -90,8 +92,8 @@ public class RouMiningPlugin implements MiningPlugin{
 
 		private Place place[n][n];
 		//判断是否存在库所,并构造库所
-		for (int i = 0; i < causalSuccession.rows(); i++){
-			for (int j = 0; j < causalSuccession.rows(); j++){
+		for (int i = 0; i < n; i++){
+			for (int j = 0; j < n; j++){
 				if (causalSuccession.get(i,j)>val2) {
 					//活动i与j存在库所
 					place[i][j]=new Place("place({"+i+"},{"+j+"})",result);
@@ -102,38 +104,42 @@ public class RouMiningPlugin implements MiningPlugin{
 			}
 		}
 
+		//构造边,n个节点有向图，最多n(n-1)条边
+		List<PNEdge> Edgelist=new ArrayList<PNEdge>();
+
 		//判断路由结构
-		for (int i = 0; i < causalSuccession.rows(); i++){
-			for (int j = 0; j < causalSuccession.rows(); j++){
-				if () {
-					
+		private int sum=0;
+		private int flag[n][n];	//标志，判断并发和选择，默认并发结构flag[1][2]=3表示2与3是选择结构，前去为1，共享同一输入库所
+		for (int i = 0; i < n; i++){
+			for (int j = 0; j < n; j++){
+				for (int k=0; k<n; k++) {
+					if (place[i][j]!=null&&place[i][k]!=null) {
+						for (int m=0; m<n; m++) {
+							sum+=directSuccessionCount.get(i,m);
+						}
+						if (sum==directSuccessionCount.get(i,j)&&sum==directSuccessionCount.get(i,k)) {
+							flag[i][j]=k;
+							flag[i][k]=j;
+						}
+						//构造边
+						if (flag[i][j]=k&&flag[i][k]=j) {
+							Edgelist.add(new PNEdge(i, j));
+							Edgelist.add(new PNEdge(i, k));
+						}else if (directSuccessionCount.get(i,j)>val1&&causalSuccession.get(i,j)>val2) {
+							Edgelist.add(new PNEdge(i, j));
+						}
+					}
 				}
 			}
 		}
 
-		//构造边
+		//将边加入petri网
+		for(int i=0;i<Edgelist.size();i++){
+			result.addEdge(Edgelist.get(i));
+		}
+	
+		return result;
 
-
-		Place start = new Place("Start", result);
-		Place end = new Place("End", result);
-		Place middle1 = new Place("Middle1", result);
-		Place middle2 = new Place("Middle2", result);
-		result.addPlace(start);
-		result.addPlace(end);
-		result.addPlace(middle1);
-		result.addPlace(middle2);
-		Transition first = new Transition("first", result);
-		Transition last = new Transition("last", result);
-		result.addTransition(first);
-		result.addTransition(last);
-		PNEdge startToFirst = new PNEdge(start, first);
-		PNEdge firstToMiddle = new PNEdge(first, middle1);
-		PNEdge middleToLast = new PNEdge(middle2, last);
-		PNEdge lastToEnd = new PNEdge(last, end);
-		result.addEdge(startToFirst);
-		result.addEdge(firstToMiddle);
-		result.addEdge(middleToLast);
-		result.addEdge(lastToEnd);
 	}
 
 	//parameter表示去噪参数
